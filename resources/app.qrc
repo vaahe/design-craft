@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/design_craft.ico</file>
+        <file>images/sofa.png</file>
+        <file>images/chair.png</file>
+        <file>images/bed.png</file>
+        <file>images/table.png</file>
+        <file>images/paint.png</file>
+        <file>images/tile.png</file>
+        <file>images/wallpaper.png</file>
+        <file>images/wood.png</file>
+    </qresource>
+</RCC>
