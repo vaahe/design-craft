@@ -5,6 +5,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QListWidget>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 class StartupWindow : public QWidget {
     Q_OBJECT

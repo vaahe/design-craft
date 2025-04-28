@@ -16,6 +16,8 @@ public:
     explicit MainController(QWidget *parent = nullptr);
 
     void setStackedWidget();
+    void setMainWindow();
+    void setStartupWindow();
 
 private slots:
     void onCreateProject();

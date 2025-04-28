@@ -12,6 +12,7 @@ MainController::MainController(QWidget *parent) :
     connect(m_startupWindow, &StartupWindow::createProjectRequested, this, &MainController::onCreateProject);
     connect(m_startupWindow, &StartupWindow::projectSelected, this, &MainController::onSelectProject);
     connect(m_startupWindow, &StartupWindow::openProjectRequested, this, &MainController::onOpenProject);
+    connect(m_mainWindow, &MainWindow::homeWindowRequested, this, &MainController::setStartupWindow);
 }
 
 void MainController::setStackedWidget() {
@@ -21,12 +22,9 @@ void MainController::setStackedWidget() {
 }
 
 void MainController::onCreateProject() {
-    qDebug() << "Create project request";
-    m_stackedWidget->setCurrentWidget(m_mainWindow);
-
     int width = 10, height = 3, depth = 10;
     m_mainWindow->setRoomSize(width, height, depth);
-    m_stackedWidget->setCurrentWidget(m_mainWindow);
+    setMainWindow();
 }
 
 void MainController::onOpenProject() {
@@ -35,4 +33,12 @@ void MainController::onOpenProject() {
 
 void MainController::onSelectProject(const QString projectName) {
     qDebug() << "Project selected" << projectName;
+}
+
+void MainController::setMainWindow() {
+    m_stackedWidget->setCurrentWidget(m_mainWindow);
+}
+
+void MainController::setStartupWindow() {
+    m_stackedWidget->setCurrentWidget(m_startupWindow);
 }

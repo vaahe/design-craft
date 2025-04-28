@@ -1,88 +1,162 @@
 #include "createfurniturewidget.h"
 
-FurnitureDialog::FurnitureDialog(QWidget *parent) : QDialog(parent) {
-    setWindowTitle("Create Furniture");
-    resize(800, 500); // Set dialog size
+CreateFurnitureWidget::CreateFurnitureWidget(QWidget *parent)
+    : QDialog(parent),
+    currentColor(QColor(139, 69, 19))
+{
+    setupUI();
+    updatePreview();
+    updateColorButton();
 
-    // ** Left Panel: Input Fields **
-    QLabel *nameLabel = new QLabel("Name:");
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+}
+void CreateFurnitureWidget::setupUI()
+{
     nameEdit = new QLineEdit(this);
+    nameEdit->setPlaceholderText("My Closet");
 
-    QLabel *categoryLabel = new QLabel("Category:");
-    categoryCombo = new QComboBox(this);
-    categoryCombo->addItems({"Chair", "Table", "Sofa", "Bed"}); // More categories
+    widthSpin = new QDoubleSpinBox(this);
+    widthSpin->setRange(0.5, 5.0);
+    widthSpin->setValue(2.0);
+    widthSpin->setSuffix(" m");
 
-    QPushButton *colorButton = new QPushButton("Pick Color");
-    connect(colorButton, &QPushButton::clicked, this, &FurnitureDialog::pickColor);
+    heightSpin = new QDoubleSpinBox(this);
+    heightSpin->setRange(1.0, 3.0);
+    heightSpin->setValue(2.2);
+    heightSpin->setSuffix(" m");
 
-    QLabel *dimensionsLabel = new QLabel("Adjust Dimensions:");
-    widthSlider = new QSlider(Qt::Horizontal);
-    heightSlider = new QSlider(Qt::Horizontal);
-    depthSlider = new QSlider(Qt::Horizontal);
+    depthSpin = new QDoubleSpinBox(this);
+    depthSpin->setRange(0.3, 1.5);
+    depthSpin->setValue(0.6);
+    depthSpin->setSuffix(" m");
 
-    widthSlider->setRange(10, 200);
-    heightSlider->setRange(10, 200);
-    depthSlider->setRange(10, 200);
+    shelfCountSpin = new QSpinBox(this);
+    shelfCountSpin->setRange(0, 10);
+    shelfCountSpin->setValue(3);
 
-    connect(widthSlider, &QSlider::valueChanged, this, &FurnitureDialog::updatePreview);
-    connect(heightSlider, &QSlider::valueChanged, this, &FurnitureDialog::updatePreview);
-    connect(depthSlider, &QSlider::valueChanged, this, &FurnitureDialog::updatePreview);
+    shelfSpacingSpin = new QDoubleSpinBox(this);
+    shelfSpacingSpin->setRange(0.2, 1.0);
+    shelfSpacingSpin->setValue(0.5);
+    shelfSpacingSpin->setSuffix(" m");
 
-    QPushButton *saveButton = new QPushButton("Save");
-    connect(saveButton, &QPushButton::clicked, this, &FurnitureDialog::saveFurniture);
+    typeCombo = new QComboBox(this);
+    typeCombo->addItems({"Closet", "Wardrobe", "Bookshelf", "Cabinet"});
 
-    QVBoxLayout *inputLayout = new QVBoxLayout();
-    inputLayout->addWidget(nameLabel);
-    inputLayout->addWidget(nameEdit);
-    inputLayout->addWidget(categoryLabel);
-    inputLayout->addWidget(categoryCombo);
-    inputLayout->addWidget(colorButton);
-    inputLayout->addWidget(dimensionsLabel);
-    inputLayout->addWidget(widthSlider);
-    inputLayout->addWidget(heightSlider);
-    inputLayout->addWidget(depthSlider);
-    inputLayout->addWidget(saveButton);
+    colorButton = new QPushButton("Select Color", this);
+    createButton = new QPushButton("Create Furniture", this);
+    createButton->setStyleSheet("background-color: #4CAF50; color: white;");
 
-    // ** Right Panel: OpenGL Preview **
-    m_previewWidget = new CreateFurnitureOpenGLWidget(this);
-    m_previewWidget->setMinimumSize(400, 400); // Set fixed preview size
+    previewWidget = new CreateFurnitureOpenGLWidget(this);
+    previewWidget->setMinimumSize(600, 500);
 
-    QVBoxLayout *previewLayout = new QVBoxLayout();
-    previewLayout->addWidget(m_previewWidget);
+    QFormLayout *formLayout = new QFormLayout;
+    formLayout->addRow("Name:", nameEdit);
+    formLayout->addRow("Type:", typeCombo);
+    formLayout->addRow("Width:", widthSpin);
+    formLayout->addRow("Height:", heightSpin);
+    formLayout->addRow("Depth:", depthSpin);
+    formLayout->addRow("Shelves:", shelfCountSpin);
+    formLayout->addRow("Shelf Spacing:", shelfSpacingSpin);
+    formLayout->addRow("Color:", colorButton);
+    formLayout->addWidget(createButton);
 
-    // ** Combine Both Panels into One Layout **
-    QHBoxLayout *mainLayout = new QHBoxLayout(this);
-    mainLayout->addLayout(inputLayout, 1);  // Left Panel (Inputs)
-    mainLayout->addLayout(previewLayout, 2); // Right Panel (Preview)
+    // Left panel (inputs) - fixed width
+    QWidget *inputPanel = new QWidget;
+    inputPanel->setLayout(formLayout);
+    inputPanel->setFixedWidth(350);
 
-    setLayout(mainLayout);
+    QVBoxLayout *previewLayout = new QVBoxLayout;
+    previewLayout->addWidget(previewWidget);
+    previewLayout->setContentsMargins(10, 0, 10, 10);
+
+    QWidget *previewPanel = new QWidget;
+    previewPanel->setLayout(previewLayout);
+
+    QHBoxLayout *topLayout = new QHBoxLayout;
+    topLayout->addWidget(inputPanel);
+    topLayout->addWidget(previewPanel, 1);
+
+    QWidget *topWidget = new QWidget;
+    topWidget->setLayout(topLayout);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->addWidget(topWidget);
+    mainLayout->setContentsMargins(5, 5, 5, 5);
+
+    auto updateSignal = QOverload<double>::of(&QDoubleSpinBox::valueChanged);
+    connect(widthSpin, updateSignal, this, &CreateFurnitureWidget::updatePreview);
+    connect(heightSpin, updateSignal, this, &CreateFurnitureWidget::updatePreview);
+    connect(depthSpin, updateSignal, this, &CreateFurnitureWidget::updatePreview);
+    connect(shelfSpacingSpin, updateSignal, this, &CreateFurnitureWidget::updatePreview);
+    connect(shelfCountSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &CreateFurnitureWidget::updatePreview);
+    connect(colorButton, &QPushButton::clicked, this, &CreateFurnitureWidget::pickColor);
+    connect(createButton, &QPushButton::clicked, this, &CreateFurnitureWidget::createFurniture);
+
+    // Connect furniture creation to optimization
+    // connect(this, &CreateFurnitureWidget::furnitureCreated,
+    //         [=](float width, float height, float depth, const QColor& color, int shelves, float spacing) {
+    //             QList<QPair<float, float>> parts;
+
+    //             // Side panels (x2)
+    //             parts.append({width*1000, depth*1000});
+    //             parts.append({width*1000, depth*1000});
+
+    //             // Top and bottom panels
+    //             parts.append({width*1000, depth*1000});
+    //             parts.append({width*1000, depth*1000});
+
+    //             // Shelves
+    //             for (int i = 0; i < shelves; ++i) {
+    //                 parts.append({(width-0.1f)*1000, (depth-0.1f)*1000});
+    //             }
+
+    //             optimizer->setFurnitureParts(parts);
+    //             optimizer->setMaterialSize(1830.0f, 2440.0f);
+    //         });
 }
 
-// Pick color function
-void FurnitureDialog::pickColor() {
-    QColor color = QColorDialog::getColor(Qt::white, this, "Select Color");
-    if (color.isValid()) {
-        selectedColor = color;
-        updatePreview();
-    }
-}
-
-// Update 3D model preview
-void FurnitureDialog::updatePreview() {
-    m_previewWidget->setFurnitureAttributes(
-        categoryCombo->currentText(), selectedColor,
-        widthSlider->value(), heightSlider->value(), depthSlider->value()
+void CreateFurnitureWidget::updatePreview()
+{
+    previewWidget->setFurnitureDimensions(
+        widthSpin->value(),
+        heightSpin->value(),
+        depthSpin->value(),
+        currentColor,
+        shelfCountSpin->value(),
+        shelfSpacingSpin->value()
         );
 }
 
-// Save furniture to database
-void FurnitureDialog::saveFurniture() {
-    QString name = nameEdit->text();
-    QString category = categoryCombo->currentText();
-    QColor color = selectedColor;
-
-    if (name.isEmpty()) {
-        QMessageBox::warning(this, "Error", "Please enter a name for the furniture.");
-        return;
+void CreateFurnitureWidget::pickColor()
+{
+    QColor color = QColorDialog::getColor(currentColor, this, "Select Furniture Color");
+    if (color.isValid()) {
+        currentColor = color;
+        updatePreview();
+        updateColorButton();
     }
+}
+
+void CreateFurnitureWidget::updateColorButton()
+{
+    QString textColor = currentColor.lightness() > 150 ? "black" : "white";
+    colorButton->setStyleSheet(QString("background-color: %1; color: %2; padding: 5px;").arg(currentColor.name()).arg(textColor));
+}
+
+void CreateFurnitureWidget::createFurniture()
+{
+    float width = widthSpin->value();
+    float height = heightSpin->value();
+    float depth = depthSpin->value();
+    int shelves = shelfCountSpin->value();
+    float spacing = shelfSpacingSpin->value();
+
+    emit furnitureCreated(width, height, depth, currentColor, shelves, spacing);
+
+    std::vector<float> shelfPositions = ClosetGenerator::calculateShelfPositions(height, shelves, spacing);
+
+    emit closetCreated(nameEdit->text(), QVector3D(width, height, depth), currentColor, shelfPositions);
+
+    accept();
 }

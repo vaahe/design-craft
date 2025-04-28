@@ -1,24 +1,56 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent),
     ui(new Ui::MainWindow),
-    m_glWidget(new OpenGLWidget(this)),
-    m_statusLabel(new QLabel("Zoom: 1.0 | Yaw: 0° | Pitch: 0°", this))
+    m_roomSize(10.0f, 3.0f, 10.0f)
 {
     ui->setupUi(this);
+
+    m_roomViewer = new RoomViewer(this);
+    setCentralWidget(m_roomViewer);
+
+    m_furnitureDesigner = new CreateFurnitureWidget(this);
+    setupFurnitureDesigner();
 
     createMenuBar();
     createToolBar();
     createSidebar();
     createStatusBar();
-
     setShortcuts();
-    setCentralWidget(m_glWidget);
+}
+
+void MainWindow::setupFurnitureDesigner()
+{
+    connect(m_furnitureDesigner, &CreateFurnitureWidget::furnitureCreated,
+            this, &MainWindow::addFurnitureToRoom);
+
+    QToolButton *designButton = new QToolButton(this);
+    designButton->setText("Design Furniture");
+    designButton->setIcon(QIcon(":/icons/design.png"));
+    // ui->mainToolBar->addWidget(designButton);
+    connect(designButton, &QToolButton::clicked,
+            m_furnitureDesigner, &QDialog::exec);
+}
 
 
-    connect(m_glWidget, &OpenGLWidget::viewUpdated, this, &MainWindow::setStatusLabel);
+void MainWindow::addFurnitureToRoom(float width, float height, float depth, const QColor& color, int shelves, float spacing)
+{
+    std::vector<float> shelfPositions;
+    float currentY = spacing - height/2;
+    for (int i = 0; i < shelves; i++) {
+        shelfPositions.push_back(currentY);
+        currentY += spacing;
+    }
+
+    m_roomViewer->addFurniture(
+        QVector3D(0, -m_roomSize.y()/2 + height/2, -m_roomSize.z()/2 + 0.1f),
+        QVector3D(width, height, depth),
+        color,
+        "Custom Furniture",
+        shelfPositions
+        );
 }
 
 MainWindow::~MainWindow() {
@@ -26,8 +58,8 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::createMenuBar() {
-    connect(ui->resetViewAction, &QAction::triggered, this, [this]() {m_glWidget->resetView();});
-    connect(ui->showGridAction, &QAction::triggered, this, [this]() {m_glWidget->enableGrid();});
+    // connect(ui->resetViewAction, &QAction::triggered, this, [this]() {m_glWidget->resetView();});
+    // connect(ui->showGridAction, &QAction::triggered, this, [this]() {m_glWidget->enableGrid();});
 }
 
 void MainWindow::createStatusBar() {
@@ -38,23 +70,12 @@ void MainWindow::createStatusBar() {
     statusLayout->addWidget(m_statusLabel);
     statusLayout->addStretch();
 
-    ////
-    QToolButton *wallControllerButton = new QToolButton(this);
-    wallControllerButton->setText("Show walls");
-
-    WallControllerWidget *widget = new WallControllerWidget();
-    connect(wallControllerButton, &QToolButton::clicked, this, [widget]() { widget->show();} );
-    connect(widget, &WallControllerWidget::wallColorChanged, m_glWidget, &OpenGLWidget::onWallColorChanged);
-    connect(widget, &WallControllerWidget::wallOpacityChanged, m_glWidget, &OpenGLWidget::onWallOpacityChanged);
-    ////
-
     QToolButton *zoomInButton = new QToolButton(this);
     zoomInButton->setDefaultAction(ui->zoomInAction);
 
     QToolButton *zoomOutButton = new QToolButton(this);
     zoomOutButton->setDefaultAction(ui->zoomOutAction);
 
-    statusLayout->addWidget(wallControllerButton);
     statusLayout->addWidget(new QLabel("Zoom:"));
     statusLayout->addWidget(zoomInButton);
     statusLayout->addWidget(zoomOutButton);
@@ -66,82 +87,165 @@ void MainWindow::createStatusBar() {
 void MainWindow::createToolBar() {
     QToolBar *toolBar = addToolBar("Main Toolbar");
 
-    toolBar->addAction("Create furniture", this, &MainWindow::createFurniture);
     toolBar->addAction("Open", this, []() { /* TODO: Open project */ });
     toolBar->addAction("Save", this, []() { /* TODO: Save project */ });
     toolBar->addSeparator();
     toolBar->addAction("Undo", this, []() { /* TODO: Undo action */ });
     toolBar->addAction("Redo", this, []() { /* TODO: Redo action */ });
+    toolBar->addAction("Calculate material", this, [this]() {
+        auto furnitureList = m_roomViewer->getFurniturePieces();
+
+        QList<Part> allPartsMM;
+
+        for (const auto& f : furnitureList) {
+            auto parts = ClosetGenerator::generateClosetParts(
+                f.dimensions.x(), f.dimensions.y(), f.dimensions.z(),
+                static_cast<int>(f.shelfPositions.size()),
+                f.shelfPositions.empty() ? 0.5f : (f.shelfPositions[1] - f.shelfPositions[0])
+            );
+
+            for (const auto& part : parts) {
+                allPartsMM.append({
+                    part.name,
+                    part.dimensions.x() * 1000.0f,  // width
+                    part.dimensions.y() * 1000.0f   // height
+                });
+            }
+        }
+
+        if (allPartsMM.isEmpty()) {
+            QMessageBox::information(this, "No Furniture", "There is no furniture in the room.");
+            return;
+        }
+
+        auto *optimizer = new MaterialOptimizerWidget();
+        optimizer->setFurnitureParts(allPartsMM);
+        optimizer->show();
+    });
 
     addToolBar(Qt::TopToolBarArea, toolBar);
 }
 
 void MainWindow::createSidebar() {
-    QDockWidget *sidebar = new QDockWidget("Sidebar", this);
+    QDockWidget *sidebar = new QDockWidget("Design Elements", this);
+    sidebar->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
 
-    // Main sidebar widget
     QWidget *sidebarWidget = new QWidget();
     QVBoxLayout *layout = new QVBoxLayout();
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(10);
 
-    // Dropdown menu
     QComboBox *categoryDropdown = new QComboBox();
+    categoryDropdown->setStyleSheet("QComboBox { padding: 5px; font-size: 14px; }");
     categoryDropdown->addItem("Furniture Catalog");
-    categoryDropdown->addItem("Floor");
-    categoryDropdown->addItem("Wall");
+    categoryDropdown->addItem("Flooring");
+    categoryDropdown->addItem("Wall Treatments");
     categoryDropdown->addItem("Windows");
     categoryDropdown->addItem("Doors");
+    categoryDropdown->addItem("Lighting");
+    categoryDropdown->addItem("Decorations");
 
-    // List widget for displaying items
     QListWidget *listWidget = new QListWidget();
-    listWidget->setIconSize(QSize(64, 64));
+    listWidget->setStyleSheet(R"(
+        QListWidget {
+            background: white;
+            border: none;
+        }
+        QListWidget::item {
+            border: 1px solid #ccc;
+            margin: 0;
+            padding: 5px;
+            background: #f8f8f8;
+        }
+        QListWidget::item:selected {
+            background: #ddd;
+        }
+    )");
 
-    // Define section items (category -> list of items)
+    listWidget->setViewMode(QListWidget::IconMode);
+    listWidget->setIconSize(QSize(80, 80));
+    listWidget->setResizeMode(QListWidget::Adjust);
+    listWidget->setMovement(QListWidget::Static);
+    listWidget->setSpacing(10);
+
     QMap<QString, QList<QPair<QString, QString>>> categoryItems = {
-                                                                   {"Furniture Catalog", {
-                                                                                             {":/images/chair.png", "Chairs"},
-                                                                                             {":/images/table.png", "Tables"},
-                                                                                             {":/images/sofa.png", "Sofas"},
-                                                                                             {":/images/bed.png", "Beds"}
-                                                                                         }},
-                                                                   {"Floor", {
-                                                                                 {":/images/tile.png", "Tiles"},
-                                                                                 {":/images/wood.png", "Wooden Floor"}
-                                                                             }},
-                                                                   {"Wall", {
-                                                                                {":/images/wallpaper.png", "Wallpaper"},
-                                                                                {":/images/paint.png", "Paint"}
-                                                                            }},
-                                                                   };
+        {"Furniture Catalog", {
+                                  {":/icons/images/armchair.png", "Armchair"},
+                                  {":/icons/images/sofa.png", "Sofa"},
+                                  {":/icons/images/table.png", "Dining Table"},
+                                  {":/icons/images/coffee_table.png", "Coffee Table"},
+                                  {":/icons/images/desk.png", "Office Desk"},
+                                  {":/icons/images/bed.png", "Queen Bed"},
+                                  {":/icons/images/wardrobe.png", "Wardrobe"},
+                                  {":/icons/images/bookshelf.png", "Bookshelf"},
+                                  {":/icons/images/tv_stand.png", "TV Stand"}
+                              }},
+        {"Flooring", {
+                         {":/icons/images/hardwood.png", "Hardwood"},
+                         {":/icons/images/tile.png", "Ceramic Tile"},
+                         {":/icons/images/marble.png", "Marble"},
+                         {":/icons/images/carpet.png", "Carpet"},
+                         {":/icons/images/vinyl.png", "Vinyl Plank"},
+                         {":/icons/images/laminate.png", "Laminate"},
+                         {":/icons/images/bamboo.png", "Bamboo"},
+                         {":/icons/images/concrete.png", "Polished Concrete"}
+                     }},
+        {"Wall Treatments", {
+                                {":/icons/images/paint.png", "Paint"},
+                                {":/icons/images/wallpaper.png", "Wallpaper"},
+                                {":/icons/images/stone_wall.png", "Stone Veneer"},
+                                {":/icons/images/tile.png", "Tile"},
+                            }},
+        {"Windows", {
+                        {":/icons/images/casement.png", "Casement"},
+                        {":/icons/images/double_hung.png", "Double Hung"},
+                        {":/icons/images/panorama.png", "Panorama"}
+                    }},
+        {"Doors", {
+                      {":/icons/images/wooden_door.png", "Wooden Door"},
+                      {":/icons/images/double_hund_door.png", "Double hund Door"}
+                  }},
+        {"Lighting", {
+                         {":/icons/images/chandelier.png", "Chandelier"},
+                         {":/icons/images/pendant.png", "Pendant"},
+                         {":/icons/images/sconce.png", "Wall Sconce"},
+                         {":/icons/images/floor_lamp.png", "Floor Lamp"},
+                         {":/icons/images/table_lamp.png", "Table Lamp"}
+                     }},
+        {"Decorations", {
+                            {":/icons/images/rug.png", "Area Rug"},
+                            {":/icons/images/curtains.png", "Curtains"},
+                            {":/icons/images/mirror.png", "Mirror"},
+                            {":/icons/images/vase.png", "Vase"},
+                            {":/icons/images/plant.png", "Indoor Plant"}
+                        }}
+    };
 
-    // Ensure categoryItems is captured safely
-    auto updateList = [&, listWidget, categoryItems](const QString &selectedCategory) {
+    auto updateList = [listWidget, categoryItems](const QString &selectedCategory) {
         listWidget->clear();
-
-        // Check if category exists in map
         if (categoryItems.contains(selectedCategory)) {
             for (const auto &item : categoryItems[selectedCategory]) {
-                addFurnitureItem(listWidget, item.first, item.second);
+                QListWidgetItem *listItem = new QListWidgetItem(QIcon(item.first), item.second);
+                listItem->setTextAlignment(Qt::AlignHCenter | Qt::AlignBottom);
+                listItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled);
+                listWidget->addItem(listItem);
             }
         }
     };
 
-    // Initialize with the default category
-    updateList("Furniture Catalog");
+    updateList(categoryDropdown->currentText());
 
-    // Add widgets to layout
     layout->addWidget(categoryDropdown);
     layout->addWidget(listWidget);
     sidebarWidget->setLayout(layout);
     sidebar->setWidget(sidebarWidget);
     addDockWidget(Qt::LeftDockWidgetArea, sidebar);
 
-    // Connect dropdown selection change event
     connect(categoryDropdown, &QComboBox::currentTextChanged, updateList);
+    // connect(listWidget, &QListWidget::itemClicked, this, &MainWindow::handleItemSelection);
 }
 
 
-
-// Helper function to add an item with an image
 void MainWindow::addFurnitureItem(QListWidget *listWidget, const QString &imagePath, const QString &title) {
     QListWidgetItem *item = new QListWidgetItem(QIcon(imagePath), title);
     item->setSizeHint(QSize(100, 80));  // Adjust the item size
@@ -151,9 +255,9 @@ void MainWindow::addFurnitureItem(QListWidget *listWidget, const QString &imageP
 
 void MainWindow::setRoomSize(int width, int height, int depth)
 {
-    if (m_glWidget) {
-        m_glWidget->setRoomSize(width, height, depth);
-    }
+    // if (m_glWidget) {
+    //     m_glWidget->setRoomSize(width, height, depth);
+    // }
 }
 
 void MainWindow::loadProject(const QString &fileName)
@@ -264,7 +368,8 @@ void MainWindow::selectAllAction() {
 }
 
 void MainWindow::homeAction() {
-    QMessageBox::information(this, "Home", "Home button triggered.");
+    emit homeWindowRequested();
+    // QMessageBox::information(thsis, "Home", "Home button triggered.");
 }
 
 void MainWindow::exportAction() {
@@ -272,16 +377,9 @@ void MainWindow::exportAction() {
 }
 
 void MainWindow::zoomIn() {
-    m_glWidget->zoomIn();
+    // m_glWidget->zoomIn();
 }
 
 void MainWindow::zoomOut() {
-    m_glWidget->zoomOut();
-}
-
-void MainWindow::createFurniture() {
-    FurnitureDialog dialog(this);
-    if (dialog.exec() == QDialog::Accepted) {
-        // Refresh UI or fetch updated furniture list
-    }
+    // m_glWidget->zoomOut();
 }

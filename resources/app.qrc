@@ -1,13 +1,41 @@
 <RCC>
-    <qresource prefix="/">
-        <file>images/design_craft.ico</file>
-        <file>images/sofa.png</file>
-        <file>images/chair.png</file>
+    <qresource prefix="/icons">
+        <file>images/armchair.png</file>
+        <file>images/bamboo.png</file>
         <file>images/bed.png</file>
-        <file>images/table.png</file>
+        <file>images/bookshelf.png</file>
+        <file>images/carpet.png</file>
+        <file>images/casement.png</file>
+        <file>images/chandelier.png</file>
+        <file>images/coffee_table.png</file>
+        <file>images/concrete.png</file>
+        <file>images/curtains.png</file>
+        <file>images/design_craft.ico</file>
+        <file>images/desk.png</file>
+        <file>images/double_hund_door.png</file>
+        <file>images/double_hung.png</file>
+        <file>images/floor_lamp.png</file>
+        <file>images/hardwood.png</file>
+        <file>images/laminate.png</file>
+        <file>images/marble.png</file>
+        <file>images/mirror.png</file>
         <file>images/paint.png</file>
+        <file>images/panorama.png</file>
+        <file>images/pendant.png</file>
+        <file>images/plant.png</file>
+        <file>images/rug.png</file>
+        <file>images/sconce.png</file>
+        <file>images/sofa.png</file>
+        <file>images/stone_wall.png</file>
+        <file>images/table.png</file>
+        <file>images/table_lamp.png</file>
         <file>images/tile.png</file>
+        <file>images/tv_stand.png</file>
+        <file>images/vase.png</file>
+        <file>images/vinyl.png</file>
         <file>images/wallpaper.png</file>
+        <file>images/wardrobe.png</file>
         <file>images/wood.png</file>
+        <file>images/wooden_door.png</file>
     </qresource>
 </RCC>

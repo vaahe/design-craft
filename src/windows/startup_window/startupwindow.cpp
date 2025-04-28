@@ -2,55 +2,82 @@
 #include <QLabel>
 #include <QFileDialog>
 #include <QInputDialog>
+#include <QIcon>
 
 StartupWindow::StartupWindow(QWidget *parent) : QWidget(parent) {
     setWindowTitle("Select or Create a Project");
-    setFixedSize(400, 300);
+    setFixedSize(420, 350);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setSpacing(12);
 
-    // Title
+    QLabel *logo = new QLabel();
+    QPixmap pixmap(":/icons/images/logo.png");
+    logo->setPixmap(pixmap.scaled(80, 80, Qt::KeepAspectRatio));
+    logo->setAlignment(Qt::AlignCenter);
+    layout->addWidget(logo);
+
     QLabel *title = new QLabel("Furniture Design App");
     title->setAlignment(Qt::AlignCenter);
     layout->addWidget(title);
 
-    // Create & Open Buttons
     QPushButton *createBtn = new QPushButton("Create New Project");
     QPushButton *openBtn = new QPushButton("Open Existing Project");
 
     layout->addWidget(createBtn);
     layout->addWidget(openBtn);
 
-    // Recent Projects List
-    recentProjectsList = new QListWidget();
-    layout->addWidget(new QLabel("Recently Opened Projects:"));
-    layout->addWidget(recentProjectsList);
+    QLabel *recentLabel = new QLabel("Recently Opened Projects:");
+    layout->addWidget(recentLabel);
 
-    // Add dummy recent projects (later load from file)
+    recentProjectsList = new QListWidget();
+
     recentProjectsList->addItem("Living Room Design");
     recentProjectsList->addItem("Kitchen Layout");
     recentProjectsList->addItem("Office Space");
 
-    // Connect buttons
+    layout->addWidget(recentProjectsList);
+
     connect(createBtn, &QPushButton::clicked, this, &StartupWindow::handleCreateProject);
     connect(openBtn, &QPushButton::clicked, this, &StartupWindow::handleOpenProject);
     connect(recentProjectsList, &QListWidget::itemClicked, this, &StartupWindow::handleProjectSelection);
 }
 
-// 📌 Handle Create New Project
 void StartupWindow::handleCreateProject() {
     emit createProjectRequested();
 }
 
-// 📌 Handle Open Existing Project
 void StartupWindow::handleOpenProject() {
-    QString fileName = QFileDialog::getOpenFileName(this, "Open Project", "", "Furniture Projects (*.furn)");
-    if (!fileName.isEmpty()) {
-        emit projectSelected(fileName);
+    QString fileName = QFileDialog::getOpenFileName(this, "Open Project", "", "Design Craft Projects (*.decr)");
+
+    if (fileName.isEmpty()) return;
+
+    if (!fileName.endsWith(".decr", Qt::CaseInsensitive)) {
+        qDebug() << "Invalid file format! Please select a .decr file.";
+        return;
     }
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qDebug() << "Failed to open project file!";
+        return;
+    }
+
+    QByteArray fileData = file.readAll();
+    file.close();
+
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(fileData);
+    if (jsonDoc.isNull()) {
+        qDebug() << "Invalid JSON format in project file!";
+        return;
+    }
+
+    QJsonObject jsonObj = jsonDoc.object();
+    qDebug() << "Loaded project:" << jsonObj["project_name"].toString();
+
+    emit projectSelected(jsonObj["project_name"].toString());
 }
 
-// 📌 Handle Recent Project Selection
 void StartupWindow::handleProjectSelection() {
     if (recentProjectsList->currentItem()) {
         emit projectSelected(recentProjectsList->currentItem()->text());

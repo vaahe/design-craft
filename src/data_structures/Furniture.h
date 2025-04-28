@@ -4,10 +4,10 @@
 #include <QString>
 
 struct Furniture {
-    float x, y, z;  // Position
-    float width, height, depth;  // Size
-    float rotation;  // Rotation angle
-    QString type;  // Type of furniture ("table", "chair")
+    float x, y, z;
+    float width, height, depth;
+    float rotation;
+    QString type;
 };
 
 #endif // FURNITURE_H
