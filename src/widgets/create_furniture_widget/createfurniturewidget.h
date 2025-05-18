@@ -4,6 +4,7 @@
 #include "src/widgets/create_furniture_widget/createfurnitureopenglwidget.h"
 #include "src/core/furniture_generator/ClosetGenerator.h"
 
+
 #include <QDialog>
 #include <QColor>
 #include <QFormLayout>

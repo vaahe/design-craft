@@ -12,8 +12,6 @@ public:
         int quantity;
     };
 
-    static std::vector<ClosetPart> generateClosetParts(float width, float height, float depth,
-                                                       int shelfCount, float shelfSpacing);
-
+    static std::vector<ClosetPart> generateClosetParts(float width, float height, float depth, int shelfCount, float shelfSpacing);
     static std::vector<float> calculateShelfPositions(float height, int shelfCount, float spacing);
 };

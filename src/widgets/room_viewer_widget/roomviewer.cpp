@@ -111,6 +111,8 @@ void RoomViewer::drawFurniture(const Furniture& f)
     glPushMatrix();
     glTranslatef(f.position.x(), f.position.y(), f.position.z());
 
+    glRotatef(f.rotation, 0.0f, 1.0f, 0.0f);
+
     if (&f == &furniturePieces[selectedFurnitureIndex]) {
         QColor highlightColor = f.color.lighter(150);
         glColor3f(highlightColor.redF(), highlightColor.greenF(), highlightColor.blueF());
@@ -172,24 +174,51 @@ void RoomViewer::mousePressEvent(QMouseEvent *event)
         selectedFurnitureIndex = selectFurnitureAtPosition(event->pos());
 
         if (selectedFurnitureIndex >= 0) {
-            if (!optimizeButton) {
-                optimizeButton = new QPushButton("Optimize Cutting", this);
-                optimizeButton->setStyleSheet(
-                    "QPushButton { background-color: #4CAF50; color: white; padding: 5px; }"
-                    "QPushButton:hover { background-color: #45a049; }"
-                    );
-                connect(optimizeButton, &QPushButton::clicked,
-                        this, &RoomViewer::showCuttingOptimizer);
-            }
+            QMenu menu(this);
 
-            QPoint buttonPos = mapFromGlobal(
-                mapToGlobal(QPoint(
-                    furniturePieces[selectedFurnitureIndex].position.x() + width()/2,
-                    furniturePieces[selectedFurnitureIndex].position.y() + height()/2
-                    ))
-                );
-            optimizeButton->move(buttonPos);
-            optimizeButton->show();
+            QAction* optimizeAction = menu.addAction("Optimize Cutting");
+            QAction* rotateLeftAction = menu.addAction("Rotate Left");
+            QAction* rotateRightAction = menu.addAction("Rotate Right");
+            QAction* deleteAction = menu.addAction("Delete Furniture");
+
+            QAction* selectedAction = menu.exec(event->globalPos());
+
+            if (selectedAction == optimizeAction) {
+                if (!optimizeButton) {
+                    optimizeButton = new QPushButton("Optimize Cutting", this);
+                    optimizeButton->setStyleSheet(
+                        "QPushButton { background-color: #4CAF50; color: white; padding: 5px; }"
+                        "QPushButton:hover { background-color: #45a049; }"
+                        );
+                    connect(optimizeButton, &QPushButton::clicked,
+                            this, &RoomViewer::showCuttingOptimizer);
+                }
+
+                QPoint buttonPos = mapFromGlobal(
+                    mapToGlobal(QPoint(
+                        furniturePieces[selectedFurnitureIndex].position.x() + width()/2,
+                        furniturePieces[selectedFurnitureIndex].position.y() + height()/2
+                        ))
+                    );
+                optimizeButton->move(buttonPos);
+                optimizeButton->show();
+            }
+            else if (selectedAction == rotateLeftAction) {
+                furniturePieces[selectedFurnitureIndex].rotation -= 90.0f;
+                update();
+            }
+            else if (selectedAction == rotateRightAction) {
+                furniturePieces[selectedFurnitureIndex].rotation += 90.0f;
+                update();
+            }
+            else if (selectedAction == deleteAction) {
+                if (selectedFurnitureIndex >= 0 && selectedFurnitureIndex < furniturePieces.size()) {
+                    furniturePieces.erase(furniturePieces.begin() + selectedFurnitureIndex);
+                    selectedFurnitureIndex = -1;
+                    if (optimizeButton) optimizeButton->hide();
+                    update();
+                }
+            }
         } else {
             if (optimizeButton) optimizeButton->hide();
         }
@@ -197,6 +226,7 @@ void RoomViewer::mousePressEvent(QMouseEvent *event)
 
     lastMousePos = event->pos();
 }
+
 
 void RoomViewer::mouseMoveEvent(QMouseEvent *event)
 {
@@ -213,9 +243,14 @@ void RoomViewer::mouseMoveEvent(QMouseEvent *event)
         QVector3D newPos = furniturePieces[selectedFurnitureIndex].position + QVector3D(movementGL.x, movementGL.y, movementGL.z);
         targetPosition = newPos;
 
-        const QVector3D& dim = furniturePieces[selectedFurnitureIndex].dimensions;
-        newPos.setX(qBound(-roomSize.x()/2 + dim.x()/2, newPos.x(), roomSize.x()/2 - dim.x()/2));
-        newPos.setZ(qBound(-roomSize.z()/2 + dim.z()/2, newPos.z(), roomSize.z()/2 - dim.z()/2));
+        // const QVector3D& dim = furniturePieces[selectedFurnitureIndex].dimensions;
+        // newPos.setX(qBound(-roomSize.x()/2 + dim.x()/2, newPos.x(), roomSize.x()/2 - dim.x()/2));
+        // newPos.setZ(qBound(-roomSize.z()/2 + dim.z()/2, newPos.z(), roomSize.z()/2 - dim.z()/2));
+        QVector3D rotatedDim = getRotatedDimensions(furniturePieces[selectedFurnitureIndex]);
+
+        newPos.setX(qBound(-roomSize.x()/2 + rotatedDim.x()/2, newPos.x(), roomSize.x()/2 - rotatedDim.x()/2));
+        newPos.setZ(qBound(-roomSize.z()/2 + rotatedDim.z()/2, newPos.z(), roomSize.z()/2 - rotatedDim.z()/2));
+
 
         furniturePieces[selectedFurnitureIndex].position = newPos;
         update();
@@ -570,4 +605,17 @@ void RoomViewer::updateWallOpacities()
             }
         }
     }
+}
+
+QVector3D RoomViewer::getRotatedDimensions(const Furniture& furniture) const
+{
+    float angleRad = glm::radians(furniture.rotation);
+
+    float cosA = std::abs(std::cos(angleRad));
+    float sinA = std::abs(std::sin(angleRad));
+
+    float rotatedWidth = furniture.dimensions.x() * cosA + furniture.dimensions.z() * sinA;
+    float rotatedDepth = furniture.dimensions.x() * sinA + furniture.dimensions.z() * cosA;
+
+    return QVector3D(rotatedWidth, furniture.dimensions.y(), rotatedDepth);
 }

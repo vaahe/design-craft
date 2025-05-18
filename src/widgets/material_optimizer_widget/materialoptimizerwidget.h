@@ -30,6 +30,33 @@ class MaterialOptimizerWidget : public QWidget {
     Q_OBJECT
 
 public:
+    enum Algorithm {
+        FirstFitDecreasing,
+        BestFitDecreasing,
+        BottomLeft,
+        Guillotine,
+        MaximalRectangles,
+        Skyline
+    };
+
+    struct Result {
+        QList<QList<QRectF>> placements;
+        float utilization;
+        float waste;
+        Algorithm algorithm;
+        int sheetsUsed;
+    };
+
+    QList<Result> optimizeCutting(const QList<QPair<float, float>>& parts, float sheetWidth, float sheetHeight, const QList<Algorithm>& algorithms);
+    void calculateMetrics(Result &result, float sheetWidth, float sheetHeight);
+
+    Result guillotineCut(const QList<QPair<float, float>>& parts, float sheetWidth, float sheetHeight);
+    Result skylineAlgorithm(const QList<QPair<float, float>>& parts, float sheetWidth, float sheetHeight);
+    Result bestFitDecreasing(const QList<QPair<float, float>>& parts, float sheetWidth, float sheetHeight);
+    Result firstFitDecreasing(const QList<QPair<float, float>>& parts, float sheetWidth, float sheetHeight);
+    Result bottomLeftAlgorithm(const QList<QPair<float, float>>& parts, float sheetWidth, float sheetHeight);
+
+public:
     explicit MaterialOptimizerWidget(QWidget *parent = nullptr);
 
     void setFurnitureParts(const QList<Part>& parts);

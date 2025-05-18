@@ -7,9 +7,10 @@
 #include <glm/glm.hpp>
 #include <QOpenGLWidget>
 
-#include <QVector3D>
 #include <QColor>
+#include <QMenu>
 #include <vector>
+#include <QVector3D>
 
 class RoomViewer : public QOpenGLWidget {
     Q_OBJECT
@@ -30,6 +31,7 @@ public:
         QColor color;
         QString name;
         std::vector<float> shelfPositions;
+        float rotation = 0.0f;
     };
 
     explicit RoomViewer(QWidget *parent = nullptr);
@@ -89,6 +91,7 @@ private:
 
 public:
     void showCuttingOptimizer();
+    QVector3D getRotatedDimensions(const Furniture& furniture) const;
 
 signals:
     void optimizeFurniture(const QList<QPair<float, float>>& parts);

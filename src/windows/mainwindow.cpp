@@ -99,7 +99,9 @@ void MainWindow::createToolBar() {
 
         for (const auto& f : furnitureList) {
             auto parts = ClosetGenerator::generateClosetParts(
-                f.dimensions.x(), f.dimensions.y(), f.dimensions.z(),
+                f.dimensions.x(),
+                f.dimensions.y(),
+                f.dimensions.z(),
                 static_cast<int>(f.shelfPositions.size()),
                 f.shelfPositions.empty() ? 0.5f : (f.shelfPositions[1] - f.shelfPositions[0])
             );
@@ -107,8 +109,8 @@ void MainWindow::createToolBar() {
             for (const auto& part : parts) {
                 allPartsMM.append({
                     part.name,
-                    part.dimensions.x() * 1000.0f,  // width
-                    part.dimensions.y() * 1000.0f   // height
+                    part.dimensions.x() * 1000.0f,
+                    part.dimensions.y() * 1000.0f
                 });
             }
         }

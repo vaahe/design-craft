@@ -88,32 +88,9 @@ void CreateFurnitureWidget::setupUI()
     connect(heightSpin, updateSignal, this, &CreateFurnitureWidget::updatePreview);
     connect(depthSpin, updateSignal, this, &CreateFurnitureWidget::updatePreview);
     connect(shelfSpacingSpin, updateSignal, this, &CreateFurnitureWidget::updatePreview);
-    connect(shelfCountSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-            this, &CreateFurnitureWidget::updatePreview);
+    connect(shelfCountSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &CreateFurnitureWidget::updatePreview);
     connect(colorButton, &QPushButton::clicked, this, &CreateFurnitureWidget::pickColor);
     connect(createButton, &QPushButton::clicked, this, &CreateFurnitureWidget::createFurniture);
-
-    // Connect furniture creation to optimization
-    // connect(this, &CreateFurnitureWidget::furnitureCreated,
-    //         [=](float width, float height, float depth, const QColor& color, int shelves, float spacing) {
-    //             QList<QPair<float, float>> parts;
-
-    //             // Side panels (x2)
-    //             parts.append({width*1000, depth*1000});
-    //             parts.append({width*1000, depth*1000});
-
-    //             // Top and bottom panels
-    //             parts.append({width*1000, depth*1000});
-    //             parts.append({width*1000, depth*1000});
-
-    //             // Shelves
-    //             for (int i = 0; i < shelves; ++i) {
-    //                 parts.append({(width-0.1f)*1000, (depth-0.1f)*1000});
-    //             }
-
-    //             optimizer->setFurnitureParts(parts);
-    //             optimizer->setMaterialSize(1830.0f, 2440.0f);
-    //         });
 }
 
 void CreateFurnitureWidget::updatePreview()
@@ -125,7 +102,7 @@ void CreateFurnitureWidget::updatePreview()
         currentColor,
         shelfCountSpin->value(),
         shelfSpacingSpin->value()
-        );
+    );
 }
 
 void CreateFurnitureWidget::pickColor()
@@ -151,6 +128,7 @@ void CreateFurnitureWidget::createFurniture()
     float depth = depthSpin->value();
     int shelves = shelfCountSpin->value();
     float spacing = shelfSpacingSpin->value();
+    qDebug() << "shelves count:" << shelves;
 
     emit furnitureCreated(width, height, depth, currentColor, shelves, spacing);
 
